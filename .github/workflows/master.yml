@@ -1,0 +1,71 @@
+name: Build and Deploy ASP.NET Core 8
+
+on:
+  push:
+    branches:
+      - master # Change this to the branch you want to trigger the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: "8.x" # Use the latest .NET Core 8 version
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Create appsettings.json
+        run: |
+          cat <<EOF > appsettings.json
+          {
+            "Logging": {
+              "LogLevel": {
+                "Default": "Information",
+                "Microsoft.AspNetCore": "Warning"
+              }
+            },
+            "AllowedHosts": "*",
+            "ConnectionStrings": {
+              "Default": "${{ secrets.DB_CONNECTION_STRING }}"
+            },
+            "JWT": {
+              "Key": "${{ secrets.JWT_KEY }}",
+              "Issuer": "${{ secrets.JWT_ISSUER }}",
+              "Audience": "${{ secrets.JWT_AUDIENCE }}"
+            },
+            "Stripe": {
+              "SevretKey": "${{ secrets.STRIPE_SECRET_KEY }}"
+            },
+            "TapPayment": {
+              "SecretKey": "${{ secrets.TAP_SECRET_KEY }}",
+              "PublicKey": "${{ secrets.TAP_PUBLIC_KEY }}",
+              "BaseUrl": "https://api.tap.company/v2",
+              "Currency": "EGP",
+              "WebhookUrl": "${{ secrets.TAP_WEBHOOK_URL }}"
+            }
+          }
+          EOF
+        shell: bash
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish -c Release -o ./publish
+
+      - name: Upload to FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.3 # GitHub Action to handle FTP deployment
+        with:
+          server: ${{ secrets.FTP_SERVER }} # FTP server URL or IP
+          username: ${{ secrets.FTP_USERNAME }} # FTP username (use GitHub secrets for security)
+          password: ${{ secrets.FTP_PASSWORD }} # FTP password (use GitHub secrets)
+          local-dir: ./publish/ # Directory to upload
+          server-dir: /wwwroot/ # FTP destination directory
+          protocol: ftps # Optional: use ftps for secure connection (can also be 'ftp')

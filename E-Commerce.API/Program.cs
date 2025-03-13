@@ -1,11 +1,11 @@
 
 using E_Commerce.Application;
 using E_Commerce.Application.DependancyInjection;
-using E_Commerce.Domain.Static;
+using E_Commerce.Infrastructure.Data;
 using E_Commerce.Infrastructure.DependancyInjection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
-using System.Text.Json.Serialization;
 
 namespace E_Commerce.API
 {
@@ -46,6 +46,7 @@ namespace E_Commerce.API
                     options.AllowAnyOrigin();
                 });
             });
+
             try
             {
                 var app = builder.Build();
@@ -60,7 +61,23 @@ namespace E_Commerce.API
                     app.UseSwaggerUI();
                 }
 
-                app.UseInfrastructureMiddlewares();
+				using (var scope = app.Services.CreateScope())
+				{
+					var services = scope.ServiceProvider;
+					try
+					{
+						var context = services.GetRequiredService<AppDbContext>();
+						context.Database.Migrate(); // Applies migrations automatically
+					}
+					catch (Exception ex)
+					{
+						var logger = services.GetRequiredService<ILogger<Program>>();
+						logger.LogError(ex, "An error occurred while applying migrations.");
+					}
+				}
+
+
+				app.UseInfrastructureMiddlewares();
                 app.UseHttpsRedirection();
                 app.UseAuthorization();
                 app.UseMiddleware<CurrentUserMiddleware>();
