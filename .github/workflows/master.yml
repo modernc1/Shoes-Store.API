@@ -69,3 +69,4 @@ jobs:
           local-dir: ./publish/ # Directory to upload
           server-dir: /wwwroot/ # FTP destination directory
           protocol: ftps # Optional: use ftps for secure connection (can also be 'ftp')
+
